@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자재 담당자 조회</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: #f4f6f9;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px 16px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            background: #ffffff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            margin-top: 20px;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        /* 품번 입력 및 버튼 영역 */
+        .search-box {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px 14px;
+            font-size: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-box input:focus {
+            border-color: #007bff;
+        }
+
+        .search-box button {
+            padding: 12px 18px;
+            font-size: 1rem;
+            font-weight: bold;
+            color: #fff;
+            background-color: #007bff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .search-box button:active {
+            background-color: #0056b3;
+        }
+
+        /* Status 메시지 */
+        .status-msg {
+            font-size: 0.9rem;
+            text-align: center;
+            color: #666;
+            margin-bottom: 15px;
+        }
+
+        /* 결과 표시 영역 */
+        .result-card {
+            display: none;
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            padding: 16px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.95rem;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #666;
+            font-weight: 500;
+        }
+
+        .result-value {
+            color: #111;
+            font-weight: 600;
+            text-align: right;
+        }
+
+        .no-result {
+            display: none;
+            text-align: center;
+            color: #dc3545;
+            font-size: 0.95rem;
+            padding: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>자재 담당자 조회</h1>
+
+    <div class="search-box">
+        <input type="text" id="partNumberInput" placeholder="품번 입력 (예: A001)" onkeypress="handleKeyPress(event)">
+        <button onclick="searchMaterial()">조회</button>
+    </div>
+
+    <div id="statusMsg" class="status-msg">데이터 로딩 중...</div>
+
+    <div id="resultCard" class="result-card">
+        <div class="result-item">
+            <span class="result-label">품번</span>
+            <span class="result-value" id="resCode">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">자재명</span>
+            <span class="result-value" id="resName">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">업체</span>
+            <span class="result-value" id="resCompany">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">자재반 담당자</span>
+            <span class="result-value" id="resClassManager">-</span>
+        </div>
+        <div class="result-item">
+            <span class="result-label">자재팀 담당자</span>
+            <span class="result-value" id="resTeamManager">-</span>
+        </div>
+    </div>
+
+    <div id="noResult" class="no-result">
+        일치하는 자재 정보가 없습니다.
+    </div>
+</div>
+
+<script>
+    let excelData = [];
+
+    // 페이지 로드시 엑셀 파일(data.xlsx) 자동 다운로드 및 데이터 변환
+    window.onload = function() {
+        fetch('data.xlsx')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('data.xlsx 파일을 찾을 수 없습니다.');
+                }
+                return response.arrayBuffer();
+            })
+            .then(buffer => {
+                const workbook = XLSX.read(buffer, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // 엑셀을 JSON 객체 배열로 변환
+                excelData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                document.getElementById('statusMsg').innerText = "품번을 입력하고 조회 버튼을 누르세요.";
+            })
+            .catch(error => {
+                console.error(error);
+                document.getElementById('statusMsg').innerText = "엑셀 데이터를 불러오는 데 실패했습니다.";
+            });
+    };
+
+    // 엔터키 입력 처리
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            searchMaterial();
+        }
+    }
+
+    // 조회 로직
+    function searchMaterial() {
+        const inputVal = document.getElementById('partNumberInput').value.trim().toUpperCase();
+        const resultCard = document.getElementById('resultCard');
+        const noResult = document.getElementById('noResult');
+
+        if (!inputVal) {
+            alert('품번을 입력해주세요.');
+            return;
+        }
+
+        // 품번 컬럼 비교 (대소문자 구분 없이, 공백 제거 후 비교)
+        const matched = excelData.find(row => {
+            const code = String(row['품번'] || '').trim().toUpperCase();
+            return code === inputVal;
+        });
+
+        if (matched) {
+            document.getElementById('resCode').innerText = matched['품번'] || '-';
+            document.getElementById('resName').innerText = matched['자재명'] || '-';
+            document.getElementById('resCompany').innerText = matched['업체'] || '-';
+            document.getElementById('resClassManager').innerText = matched['자재반 담당자'] || '-';
+            document.getElementById('resTeamManager').innerText = matched['자재팀 담당자'] || '-';
+
+            resultCard.style.display = 'block';
+            noResult.style.display = 'none';
+        } else {
+            resultCard.style.display = 'none';
+            noResult.style.display = 'block';
+        }
+    }
+</script>
+
+</body>
+</html>
