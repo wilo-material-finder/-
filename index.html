@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>자재 담당자 조회 시스템</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f5f7fa;
+            padding: 20px;
+        }
+        .container {
+            background-color: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            width: 100%;
+            max-width: 600px;
+        }
+        .admin-section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border: 1px dashed #ced4da;
+            border-radius: 6px;
+            font-size: 14px;
+            color: #495057;
+        }
+        .admin-section input {
+            margin-top: 10px;
+            width: 100%;
+        }
+        .status-msg {
+            margin-top: 8px;
+            font-size: 13px;
+            font-weight: bold;
+        }
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+        }
+        .search-box input {
+            flex: 1;
+            padding: 14px 16px;
+            font-size: 16px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            outline: none;
+        }
+        .search-box input:focus {
+            border-color: #4a90e2;
+        }
+        .search-box button {
+            padding: 14px 24px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: #4a90e2;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        .search-box button:hover {
+            background-color: #357abd;
+        }
+        .result-card {
+            display: none;
+            border-top: 2px solid #e9ecef;
+            padding-top: 20px;
+        }
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f1f3f5;
+        }
+        .result-label {
+            font-weight: 600;
+            color: #495057;
+            width: 130px;
+        }
+        .result-value {
+            color: #212529;
+            flex: 1;
+            text-align: right;
+        }
+        .no-data {
+            text-align: center;
+            color: #e03131;
+            font-weight: 500;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="admin-section">
+        <label for="excelFile"><strong>[데이터 설정]</strong> 엑셀 파일 선택 (.xlsx, .xls)</label>
+        <input type="file" id="excelFile" accept=".xlsx, .xls" />
+        <div id="statusMsg" class="status-msg"></div>
+    </div>
+
+    <div class="search-box">
+        <input type="text" id="partNumberInput" placeholder="품번을 입력하세요" onkeyup="if(window.event.keyCode==13){searchData()}">
+        <button onclick="searchData()">조회</button>
+    </div>
+
+    <div id="resultCard" class="result-card">
+        <div class="result-row"><span class="result-label">품번</span><span class="result-value" id="resPartNo">-</span></div>
+        <div class="result-row"><span class="result-label">자재명</span><span class="result-value" id="resPartName">-</span></div>
+        <div class="result-row"><span class="result-label">업체</span><span class="result-value" id="resCompany">-</span></div>
+        <div class="result-row"><span class="result-label">자재반 담당자</span><span class="result-value" id="resClassManager">-</span></div>
+        <div class="result-row"><span class="result-label">자재팀 담당자</span><span class="result-value" id="resTeamManager">-</span></div>
+    </div>
+    <div id="noDataMessage" class="no-data" style="display: none;">조회된 데이터가 없습니다.</div>
+</div>
+
+<script>
+    let excelData = [];
+
+    document.getElementById('excelFile').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        showStatus('⏳ 파일을 읽는 중입니다...', 'blue');
+
+        const reader = new FileReader();
+
+        reader.onload = function(event) {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+
+                if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                    throw new Error('시트를 찾을 수 없습니다.');
+                }
+
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+
+                // raw: false 설정으로 모든 값을 셀에 표시된 텍스트(문자열)로 변환
+                excelData = XLSX.utils.sheet_to_json(worksheet, { raw: false, defval: '' });
+
+                if (excelData.length === 0) {
+                    showStatus('⚠️ 엑셀 파일에 데이터가 없습니다.', 'orange');
+                    return;
+                }
+
+                showStatus(`✅ 로드 성공! 총 ${excelData.length}건의 자재 데이터가 연결되었습니다.`, 'green');
+            } catch (error) {
+                console.error(error);
+                showStatus(`❌ 엑셀 로드 실패: ${error.message}`, 'red');
+            }
+        };
+
+        reader.onerror = function() {
+            showStatus('❌ 파일을 읽는 동안 오류가 발생했습니다.', 'red');
+        };
+
+        reader.readAsArrayBuffer(file);
+    });
+
+    function showStatus(msg, color) {
+        const statusEl = document.getElementById('statusMsg');
+        statusEl.innerText = msg;
+        statusEl.style.color = color;
+    }
+
+    function searchData() {
+        const inputVal = document.getElementById('partNumberInput').value.trim().toLowerCase();
+        const resultCard = document.getElementById('resultCard');
+        const noDataMessage = document.getElementById('noDataMessage');
+
+        if (!inputVal) {
+            alert('품번을 입력해 주세요.');
+            return;
+        }
+
+        if (excelData.length === 0) {
+            alert('상단에서 자재 엑셀 파일(material.xlsx)을 먼저 첨부해 주세요.');
+            return;
+        }
+
+        // 품번 컬럼 검색 (문자열 및 대소문자, 공백 제거 후 비교)
+        const target = excelData.find(row => {
+            const key = Object.keys(row).find(k => k.trim() === '품번');
+            if (!key || row[key] === undefined) return false;
+            return String(row[key]).trim().toLowerCase() === inputVal;
+        });
+
+        if (target) {
+            const getValue = (headerName) => {
+                const key = Object.keys(target).find(k => k.trim() === headerName);
+                return (key && target[key]) ? target[key] : '-';
+            };
+
+            document.getElementById('resPartNo').innerText = getValue('품번');
+            document.getElementById('resPartName').innerText = getValue('자재명');
+            document.getElementById('resCompany').innerText = getValue('업체');
+            document.getElementById('resClassManager').innerText = getValue('자재반 담당자');
+            document.getElementById('resTeamManager').innerText = getValue('자재팀 담당자');
+
+            resultCard.style.display = 'block';
+            noDataMessage.style.display = 'none';
+        } else {
+            resultCard.style.display = 'none';
+            noDataMessage.style.display = 'block';
+        }
+    }
+</script>
+
+</body>
+</html>
