@@ -1,0 +1,130 @@
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, "Noto Sans KR", sans-serif;
+  background: #f4f8f7;
+  color: #222;
+}
+
+button, input { font: inherit; }
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.card {
+  width: 100%;
+  max-width: 620px;
+  margin-top: 8vh;
+  background: white;
+  border-radius: 22px;
+  padding: 32px 24px;
+  box-shadow: 0 10px 35px rgba(0,0,0,.08);
+}
+
+.logo {
+  color: #009c82;
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+h1 {
+  margin: 8px 0 4px;
+  font-size: 30px;
+}
+
+.sub {
+  margin: 0 0 24px;
+  color: #777;
+}
+
+.search {
+  display: flex;
+  gap: 8px;
+}
+
+.search input {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  border: 1px solid #ddd;
+  border-radius: 12px;
+  padding: 0 15px;
+  outline: none;
+}
+
+.search input:focus {
+  border-color: #009c82;
+  box-shadow: 0 0 0 3px rgba(0,156,130,.12);
+}
+
+.search button {
+  width: 86px;
+  border: 0;
+  border-radius: 12px;
+  background: #009c82;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.status {
+  margin-top: 12px;
+  font-size: 12px;
+  color: #999;
+}
+
+.message {
+  margin-top: 24px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #f7f7f7;
+  text-align: center;
+  color: #666;
+}
+
+.result {
+  margin-top: 22px;
+  border-top: 2px solid #009c82;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 130px 1fr;
+  border-bottom: 1px solid #eee;
+}
+
+.label, .value {
+  padding: 15px 10px;
+}
+
+.label {
+  background: #f7faf9;
+  font-weight: 700;
+}
+
+.value {
+  word-break: break-word;
+}
+
+@media (max-width: 480px) {
+  .card {
+    margin-top: 3vh;
+    padding: 26px 18px;
+    border-radius: 18px;
+  }
+
+  .search button {
+    width: 76px;
+  }
+
+  .row {
+    grid-template-columns: 110px 1fr;
+  }
+}
